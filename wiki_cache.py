@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Caching layer for Wiki RAG system.
+Caching layer for Kiwix RAG system.
 Provides LRU caches for articles, topic extraction, and search results.
 """
 
