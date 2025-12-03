@@ -9,32 +9,45 @@ Terminal chat app for Ollama with local Wikipedia integration via Kiwix.
 - Clickable hyperlinks that open Wikipedia articles
 - Commands: `/help`, `/exit`, `/clear`, `/wiki <query>`, `/view <query>`
 
-## Quick Start (Automated Setup)
+## Quick Start
 
-**Easiest way to get started:**
+### Option 1: Using Git (Recommended)
 
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone git@github.com:imDelivered/OWRs.git
 cd OWRs
 
-# Run the automated setup script
-chmod +x setup.sh
-./setup.sh
-```
+# 2. Run the setup script
+chmod +x setup.sh && ./setup.sh
 
-The setup script will automatically:
-- Install Python 3 and dependencies
-- Install Ollama
-- Install Kiwix tools
-- Set up everything needed
-
-After setup completes, just run:
-```bash
+# 3. Start the app (it handles everything automatically)
 ./run_wiki_chat.sh
 ```
 
-The launcher will automatically start Ollama, download a model if needed, and launch the chat interface.
+### Option 2: Direct Download (No Git Required)
+
+```bash
+# 1. Download and extract the repository
+wget https://github.com/imDelivered/OWRs/archive/refs/heads/main.zip
+unzip main.zip
+cd OWRs-main
+
+# 2. Run the setup script
+chmod +x setup.sh && ./setup.sh
+
+# 3. Start the app (it handles everything automatically)
+./run_wiki_chat.sh
+```
+
+**What happens automatically:**
+- Setup script installs Python, Ollama, and Kiwix
+- `run_wiki_chat.sh` starts Ollama server automatically
+- Downloads the AI model if needed (first run only)
+- Starts Kiwix server if Wikipedia ZIM file is found
+- Launches the chat interface
+
+**That's it!** No manual steps needed - just run `./run_wiki_chat.sh` after setup.
 
 ---
 
