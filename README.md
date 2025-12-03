@@ -2,6 +2,8 @@
 
 Terminal chat app for Ollama with local Wikipedia integration via Kiwix.
 
+**⚠️ Disclaimer:** This software is provided "as is" without warranty. The author is not responsible for any misuse, damage, or consequences resulting from the use of this software. See [DISCLAIMER.md](DISCLAIMER.md) for full details.
+
 ## Features
 
 - Terminal chat interface with streaming responses
