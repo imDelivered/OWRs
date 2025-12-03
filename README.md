@@ -1,6 +1,13 @@
 # Kiwix RAG
 
-Terminal chat app for Ollama with local Wikipedia integration via Kiwix. Features Retrieval Augmented Generation (RAG) for enhanced factual responses.
+Universal terminal chat app for Ollama with local Kiwix content integration. Features Retrieval Augmented Generation (RAG) for enhanced factual responses.
+
+**Works with any ZIM file from the Kiwix library:**
+- Wikipedia (any language)
+- Wiktionary (dictionaries)
+- Project Gutenberg (books)
+- TED Talks
+- And 100+ other educational content types
 
 **⚠️ Platform Note:** This software is currently Linux-only. Windows and macOS support may be added in the future.
 
@@ -9,8 +16,10 @@ Terminal chat app for Ollama with local Wikipedia integration via Kiwix. Feature
 ## Features
 
 - Terminal chat interface with streaming responses
-- Automatic Wikipedia context injection for factual queries
-- Clickable hyperlinks that open Wikipedia articles
+- Automatic Kiwix content context injection for factual queries
+- Works with ANY ZIM file from Kiwix library (Wikipedia, Wiktionary, Project Gutenberg, etc.)
+- Clickable hyperlinks that open Kiwix content
+- Multi-language support (any language ZIM file)
 - Commands: `/help`, `/exit`, `/clear`, `/wiki <query>`, `/view <query>`
 
 ## Quick Start
@@ -33,7 +42,7 @@ chmod +x setup.sh && ./setup.sh
 - Setup script installs Python, Ollama, and Kiwix
 - `run_wiki_chat.sh` starts Ollama server automatically
 - Downloads the AI model if needed (first run only)
-- Starts Kiwix server if Wikipedia ZIM file is found
+- Starts Kiwix server if ZIM file is found
 - Launches the chat interface
 
 **That's it!** No manual steps needed - just run `./run_wiki_chat.sh` after setup.
@@ -93,9 +102,9 @@ ollama list
 # Should show llama3.2:1b
 ```
 
-### Step 4: Install Kiwix (for Local Wikipedia)
+### Step 4: Install Kiwix (for Local Content)
 
-Kiwix serves the Wikipedia ZIM file locally.
+Kiwix serves ZIM files locally (Wikipedia, Wiktionary, Project Gutenberg, etc.).
 
 ```bash
 sudo apt install -y kiwix-tools
@@ -106,14 +115,16 @@ Verify installation:
 kiwix-serve --version
 ```
 
-### Step 5: Download Wikipedia ZIM File
+### Step 5: Download Kiwix ZIM File
 
-The ZIM file contains Wikipedia content offline. This is optional but recommended. **The app supports Wikipedia in any language** - not just English!
+The ZIM file contains educational content offline. This is optional but recommended. **The app works with ANY ZIM file from the Kiwix library** - not just Wikipedia!
 
 **Browse and download from the official Kiwix Library:**
 👉 **[https://library.kiwix.org/](https://library.kiwix.org/)**
 
-**Multi-language support:** You can use Wikipedia ZIM files in any language:
+**Universal Kiwix support:** The app works with any ZIM file from the Kiwix library:
+
+**Wikipedia (any language):**
 - **English**: `wikipedia_en_all_nopic_2025-07.zim` (~20GB)
 - **Spanish**: `wikipedia_es_all_nopic_2025-07.zim` (~15GB)
 - **French**: `wikipedia_fr_all_nopic_2025-07.zim` (~18GB)
@@ -121,7 +132,12 @@ The ZIM file contains Wikipedia content offline. This is optional but recommende
 - **Simple English**: `wikipedia_en_simple_all_nopic_2025-07.zim` (~1.5GB, easier language)
 - **Any other language** available in the Kiwix library
 
-**Other content types:** The app also works with other ZIM files (Wiktionary, Project Gutenberg, etc.)
+**Other content types:** The app works with ALL Kiwix ZIM files:
+- **Wiktionary** - Dictionaries in multiple languages
+- **Project Gutenberg** - Free ebooks
+- **TED Talks** - Educational videos
+- **Stack Overflow** - Programming Q&A
+- **And 100+ other content types** available at [library.kiwix.org](https://library.kiwix.org)
 
 Once downloaded, place the `.zim` file in your repo directory, `~`, or `/usr/share/kiwix/`. The app will auto-detect it.
 
@@ -138,7 +154,7 @@ wget -c https://download.kiwix.org/zim/wikipedia/wikipedia_en_all_nopic_2025-07.
 wget -c https://download.kiwix.org/zim/wikipedia/wikipedia_es_all_nopic_2025-07.zim
 ```
 
-**Note:** The ZIM file can be large (~1.5 - 100GB). You can skip this step if you just want to test the chat without Wikipedia features. The app will work, but `/wiki` commands won't function.
+**Note:** ZIM files can be large (~1.5 - 100GB). You can skip this step if you just want to test the chat without Kiwix content features. The app will work, but `/wiki` commands won't function.
 
 ### Step 6: Get the Kiwix RAG Code
 
@@ -203,7 +219,7 @@ python3 wiki_chat.py --model llama3.2:1b --detailed --wiki-max-chars 6000
 Available options:
 - `--model NAME` - Use different Ollama model (default: dolphin-llama3)
 - `--detailed` - Start in detailed response mode
-- `--wiki-max-chars N` - Max characters per Wikipedia article (default: 4000)
+- `--wiki-max-chars N` - Max characters per Kiwix content item (default: 4000)
 - `--zim-file PATH` - Specify path to ZIM file (any language/content type). If not specified, auto-detects first .zim file found.
 - `--no-stream` - Disable streaming output
 - `--no-links` - Disable hyperlink summary
