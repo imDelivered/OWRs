@@ -1525,21 +1525,25 @@ def intelligent_wiki_fetch(model: str, user_query: str, max_chars_per_article: i
     
     if not is_indexed(zim_file_path):
         import os
+        from kiwix_chat.rag.indexer import build_index
         zim_name = os.path.basename(zim_file_path)
         print("", file=sys.stderr)
         print("=" * 70, file=sys.stderr)
-        print(f"[rag] ERROR: No vector index found for '{zim_name}'", file=sys.stderr)
+        print(f"[rag] No vector index found for '{zim_name}' - building automatically...", file=sys.stderr)
         print("=" * 70, file=sys.stderr)
-        print("[rag] RAG SYSTEM REQUIRED: The system cannot retrieve precise information without the vector index.", file=sys.stderr)
-        print("[rag] Without RAG, the system cannot use semantic search to find accurate, specific content.", file=sys.stderr)
-        print("", file=sys.stderr)
-        print("[rag] TO ENABLE RAG (REQUIRED):", file=sys.stderr)
-        print("[rag]   python3 kiwix_chat.py --build-index", file=sys.stderr)
-        print("", file=sys.stderr)
-        print("[rag] This creates embeddings for semantic search (one-time setup, may take time).", file=sys.stderr)
+        print("[rag] This is a one-time setup (may take 30+ minutes for large ZIM files)", file=sys.stderr)
+        print("[rag] You can interrupt with Ctrl+C and resume later", file=sys.stderr)
         print("=" * 70, file=sys.stderr)
         print("", file=sys.stderr)
-        return None
+        try:
+            build_index(zim_file_path, show_progress=True)
+            print(f"[rag] Index build complete! Continuing with RAG...", file=sys.stderr)
+        except KeyboardInterrupt:
+            print(f"\n[rag] Index build interrupted. RAG unavailable until index is built.", file=sys.stderr)
+            return None
+        except Exception as e:
+            print(f"[rag] Index build failed: {e}", file=sys.stderr)
+            return None
     
     # Use semantic search (RAG) with token buffer system
     print(f"[rag] Using RAG retrieval for: '{user_query}'", file=sys.stderr)
