@@ -37,36 +37,63 @@ echo "✓ Python $PYTHON_VERSION installed"
 echo "[3/6] Installing Python dependencies..."
 echo "  This may take a few minutes (downloading ~200MB of packages)..."
 echo "  Installing: requests, sentence-transformers, chromadb"
-# Try --user first, fall back to --break-system-packages if needed
+
+# Function to verify installation
+verify_install() {
+    python3 -c "import chromadb; import sentence_transformers" 2>/dev/null
+}
+
+# Try --break-system-packages first (most reliable on modern systems)
 INSTALL_SUCCESS=false
-if python3 -m pip install --user requests sentence-transformers chromadb 2>&1; then
-    INSTALL_SUCCESS=true
-    echo "  ✓ Installed with --user flag"
-else
-    echo "  Note: --user install failed, trying --break-system-packages..."
-    if python3 -m pip install --break-system-packages requests sentence-transformers chromadb 2>&1; then
+VERIFIED=false
+
+echo "  Attempting installation with --break-system-packages..."
+if python3 -m pip install --break-system-packages requests sentence-transformers chromadb 2>&1; then
+    if verify_install; then
         INSTALL_SUCCESS=true
-        echo "  ✓ Installed with --break-system-packages flag"
+        VERIFIED=true
+        echo "  ✓ Installed and verified with --break-system-packages flag"
+    else
+        echo "  ⚠️  Installed but verification failed, trying --user method..."
     fi
 fi
 
-if [ "$INSTALL_SUCCESS" = false ]; then
+# If --break-system-packages didn't work, try --user
+if [ "$VERIFIED" = false ]; then
+    echo "  Attempting installation with --user flag..."
+    if python3 -m pip install --user requests sentence-transformers chromadb 2>&1; then
+        if verify_install; then
+            INSTALL_SUCCESS=true
+            VERIFIED=true
+            echo "  ✓ Installed and verified with --user flag"
+        else
+            # Sometimes --user installs but Python can't find them
+            # Try adding user site-packages to path
+            export PYTHONPATH="${HOME}/.local/lib/python3.*/site-packages:$PYTHONPATH"
+            if verify_install; then
+                INSTALL_SUCCESS=true
+                VERIFIED=true
+                echo "  ✓ Installed with --user flag (found in user site-packages)"
+            fi
+        fi
+    fi
+fi
+
+if [ "$VERIFIED" = false ]; then
     echo ""
-    echo "  ❌ ERROR: Failed to install dependencies!"
-    echo "  Please install manually:"
+    echo "  ❌ ERROR: Failed to install or verify dependencies!"
+    echo ""
+    echo "  Please try installing manually:"
     echo "    pip3 install --break-system-packages sentence-transformers chromadb"
     echo ""
-    echo "  Or if that fails, try:"
+    echo "  If that fails, try:"
     echo "    pip3 install --user sentence-transformers chromadb"
+    echo "    export PYTHONPATH=\${HOME}/.local/lib/python3.*/site-packages:\$PYTHONPATH"
+    echo ""
     exit 1
 fi
 
-# Verify installation
-if python3 -c "import chromadb; import sentence_transformers" 2>/dev/null; then
-    echo "✓ Python dependencies installed and verified (sentence-transformers, chromadb)"
-else
-    echo "⚠️  Warning: Dependencies installed but verification failed. They may still work."
-fi
+echo "✓ Python dependencies installed and verified (sentence-transformers, chromadb)"
 
 # Step 4: Install Ollama
 echo "[4/6] Installing Ollama..."
