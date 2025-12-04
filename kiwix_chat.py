@@ -4165,24 +4165,6 @@ class KiwixRAGGUI:
                             self.chat_display.see(self.tk.END)
                             self.root.update()
                             # Skip regeneration since we have no context
-                                messages = build_messages(self.system_prompt, self.history, user_query=user_input)
-                                if self.streaming_enabled:
-                                    accumulated = []
-                                    for chunk in stream_chat(self.model, messages):
-                                        accumulated.append(chunk)
-                                        # Apply styling tag during streaming
-                                        self.chat_display.insert(self.tk.END, chunk, ai_tag_name)
-                                        self.chat_display.see(self.tk.END)
-                                        self.root.update()
-                                    assistant_reply = "".join(accumulated)
-                                else:
-                                    assistant_reply = full_chat(self.model, messages)
-                                    # Apply styling tag for non-streaming
-                                    self.chat_display.insert(self.tk.END, assistant_reply, ai_tag_name)
-
-                                self.chat_display.insert(self.tk.END, "\n[wiki-tool] Response regenerated with Wikipedia data\n")
-                                self.chat_display.see(self.tk.END)
-                                self.root.update()
                     except Exception as e:
                         self.chat_display.insert(self.tk.END, f"[wiki-tool] Failed to fetch '{topic}': {e}\n")
                         self.chat_display.see(self.tk.END)
