@@ -4870,19 +4870,7 @@ def main() -> int:
                     else:
                         # RAG unavailable - no fallback
                         print(f"[rag] RAG unavailable for '{topic}'. Build index with: --build-index")
-
-                            # Regenerate response with the new context
-                            result = generate_response_with_regeneration(
-                                model=model,
-                                query=user_input,
-                                history=history,
-                                system_prompt=system_prompt_to_use,
-                                wiki_context=extract_wiki_context_from_history(history),
-                                streaming_enabled=streaming_enabled,
-                                max_attempts=2
-                            )
-                            assistant_reply = result['response']
-                            print("[wiki-tool] Response regenerated with Wikipedia data")
+                        # Skip regeneration since we have no context
                 except Exception as e:
                     print(f"[wiki-tool] Failed to fetch '{topic}': {e}")
 
