@@ -65,11 +65,21 @@ def stream_iterative_rag_response(
         yield from ollama_stream_chat(model, messages)
         return
     
+    # Check if index exists
+    from kiwix_chat.rag.vector_store import is_indexed
+    if not is_indexed(zim_file_path):
+        print(f"[iterative-rag] RAG index not found for ZIM file", file=sys.stderr)
+        print(f"[iterative-rag] Build the index first: python3 kiwix_chat.py --build-index", file=sys.stderr)
+        print(f"[iterative-rag] Using normal generation (no RAG)", file=sys.stderr)
+        yield from ollama_stream_chat(model, messages)
+        return
+    
     # Initial retrieval
     try:
         initial_chunks = retriever.retrieve(query=query, top_k=5, use_hybrid=True)
         if not initial_chunks:
-            print(f"[iterative-rag] No chunks found, using normal generation", file=sys.stderr)
+            print(f"[iterative-rag] No chunks found for query (index may be empty or query too specific)", file=sys.stderr)
+            print(f"[iterative-rag] Using normal generation", file=sys.stderr)
             yield from ollama_stream_chat(model, messages)
             return
     except Exception as e:
