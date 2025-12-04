@@ -3,11 +3,12 @@
 # Core dependencies
 requests>=2.31.0
 
-# RAG system dependencies (same models as Perplexica)
+# RAG system dependencies
 sentence-transformers>=2.2.0
 chromadb>=0.4.0
+tiktoken>=0.5.0  # For accurate token counting
 
-# Cross-encoder reranking (BGE reranker - same as Perplexica)
+# Cross-encoder reranking (BGE reranker)
 sentence-transformers[cross-encoder]>=2.2.0
 
 # Optional: For better keyword search in hybrid mode

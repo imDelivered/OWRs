@@ -36,7 +36,7 @@ echo "✓ Python $PYTHON_VERSION installed"
 # Step 3: Install Python dependencies
 echo "[3/6] Installing Python dependencies..."
 echo "  This may take a few minutes (downloading ~200MB of packages)..."
-echo "  Installing: requests, sentence-transformers, chromadb"
+echo "  Installing: requests, sentence-transformers, chromadb, tiktoken"
 
 # Function to verify installation
 verify_install() {
@@ -48,7 +48,7 @@ INSTALL_SUCCESS=false
 VERIFIED=false
 
 echo "  Attempting installation with --break-system-packages..."
-if python3 -m pip install --break-system-packages requests sentence-transformers chromadb 2>&1; then
+if python3 -m pip install --break-system-packages requests sentence-transformers chromadb tiktoken 2>&1; then
     if verify_install; then
         INSTALL_SUCCESS=true
         VERIFIED=true
@@ -61,7 +61,7 @@ fi
 # If --break-system-packages didn't work, try --user
 if [ "$VERIFIED" = false ]; then
     echo "  Attempting installation with --user flag..."
-    if python3 -m pip install --user requests sentence-transformers chromadb 2>&1; then
+    if python3 -m pip install --user requests sentence-transformers chromadb tiktoken 2>&1; then
         if verify_install; then
             INSTALL_SUCCESS=true
             VERIFIED=true
