@@ -111,11 +111,13 @@ def list_zim_articles(zim_file_path: str) -> Iterator[Tuple[str, str]]:
                 parser = HTMLParserWithLinks()
                 parser.feed(root_html)
                 
-                for href in parser.hrefs:
-                    if href.startswith('/A/') or href.startswith('/wiki/'):
+                links = parser.get_links()
+                for link in links:
+                    href = link.href
+                    if href and (href.startswith('/A/') or href.startswith('/wiki/') or '/A/' in href):
                         if href not in seen_hrefs:
                             seen_hrefs.add(href)
-                            title = href.split('/')[-1].replace('_', ' ')
+                            title = link.text if link.text else href.split('/')[-1].replace('_', ' ')
                             yield (title, href)
                             found_count += 1
                 
@@ -123,6 +125,33 @@ def list_zim_articles(zim_file_path: str) -> Iterator[Tuple[str, str]]:
                     print(f"[rag] Found {found_count} articles from root page links", file=sys.stderr)
             except Exception as e:
                 print(f"[rag] Root page method also failed: {e}", file=sys.stderr)
+            
+            # Final fallback: Try common Wikipedia article paths for "top 100" ZIMs
+            if found_count == 0:
+                print(f"[rag] Trying common article paths for top 100 ZIM...", file=sys.stderr)
+                common_articles = [
+                    "/A/United_States", "/A/Earth", "/A/World_War_II", "/A/Wikipedia",
+                    "/A/United_Kingdom", "/A/English_language", "/A/Human", "/A/Internet",
+                    "/A/Country", "/A/List_of_sovereign_states", "/A/Europe", "/A/Asia",
+                    "/A/Africa", "/A/North_America", "/A/South_America", "/A/Ocean",
+                    "/wiki/United_States", "/wiki/Earth", "/wiki/World_War_II", "/wiki/Wikipedia"
+                ]
+                
+                for path in common_articles:
+                    try:
+                        # Test if article exists by trying to read it
+                        test_html = http_get(f"{KIWIX_BASE_URL}{path}", timeout=10.0)
+                        if test_html and len(test_html) > 100:  # Has content
+                            if path not in seen_hrefs:
+                                seen_hrefs.add(path)
+                                title = path.split('/')[-1].replace('_', ' ')
+                                yield (title, path)
+                                found_count += 1
+                    except Exception:
+                        continue
+                
+                if found_count > 0:
+                    print(f"[rag] Found {found_count} articles by testing common paths", file=sys.stderr)
 
 
 def read_zim_article(zim_file_path: str, href: str) -> Optional[str]:
