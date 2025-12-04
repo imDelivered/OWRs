@@ -26,53 +26,20 @@ def list_zim_articles(zim_file_path: str) -> Iterator[Tuple[str, str]]:
         print("[rag] ERROR: Could not start Kiwix server for indexing", file=sys.stderr)
         return
     
-    # Kiwix doesn't have a direct "list all" API, so we use search
-    # Strategy: Search for common patterns to discover articles
-    # This is a limitation - we'll get a subset of articles, not all
-    
-    # Try searching for common single letters/patterns (Latin alphabet)
-    # For non-Latin scripts, we rely on sitemap.xml which should work for all languages
-    search_patterns = [
-        "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
-        "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
-        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
-    ]
-    # Note: For non-Latin scripts (Chinese, Arabic, etc.), the sitemap.xml approach below
-    # should discover articles. The search patterns above are just for Latin-script content.
-    
+    # Primary method: Use sitemap.xml (most reliable, works for all languages)
     seen_hrefs = set()
+    sitemap_success = False
     
-    for pattern in search_patterns:
-        try:
-            from urllib.parse import quote_plus
-            search_url = f"{KIWIX_BASE_URL}/search?pattern={quote_plus(pattern)}"
-            html = http_get(search_url, timeout=30.0)
-            
-            # Parse search results
-            from kiwix_chat.kiwix.parser import KiwixSearchParser
-            parser = KiwixSearchParser()
-            parser.feed(html)
-            
-            for href in parser.hrefs:
-                if href not in seen_hrefs:
-                    seen_hrefs.add(href)
-                    # Extract title from href (approximate)
-                    title = href.split('/')[-1].replace('_', ' ')
-                    yield (title, href)
-        
-        except Exception as e:
-            print(f"[rag] Warning: Error searching pattern '{pattern}': {e}", file=sys.stderr)
-            continue
-    
-    # Also try to get articles from sitemap if available
     try:
         sitemap_url = f"{KIWIX_BASE_URL}/sitemap.xml"
-        sitemap_html = http_get(sitemap_url, timeout=30.0)
+        print(f"[rag] Fetching article list from sitemap.xml...", file=sys.stderr)
+        sitemap_xml = http_get(sitemap_url, timeout=60.0)
         
-        # Parse sitemap (simple XML parsing)
+        # Parse sitemap XML (handle both compressed and uncompressed)
         import re
         href_pattern = r'<loc>(.*?)</loc>'
-        for match in re.finditer(href_pattern, sitemap_html):
+        count = 0
+        for match in re.finditer(href_pattern, sitemap_xml):
             href = match.group(1)
             # Remove base URL if present
             if href.startswith(KIWIX_BASE_URL):
@@ -81,9 +48,45 @@ def list_zim_articles(zim_file_path: str) -> Iterator[Tuple[str, str]]:
                 seen_hrefs.add(href)
                 title = href.split('/')[-1].replace('_', ' ')
                 yield (title, href)
-    except Exception:
-        # Sitemap not available, that's okay
-        pass
+                count += 1
+                if count % 1000 == 0:
+                    print(f"[rag] Found {count} articles in sitemap...", file=sys.stderr)
+        
+        if count > 0:
+            sitemap_success = True
+            print(f"[rag] Found {count} articles from sitemap.xml", file=sys.stderr)
+    except Exception as e:
+        print(f"[rag] Warning: Could not read sitemap.xml: {e}", file=sys.stderr)
+        print(f"[rag] Falling back to search patterns...", file=sys.stderr)
+    
+    # Fallback: Try search patterns if sitemap failed
+    if not sitemap_success:
+        search_patterns = [
+            "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
+            "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+            "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
+        ]
+        
+        for pattern in search_patterns:
+            try:
+                from urllib.parse import quote_plus
+                search_url = f"{KIWIX_BASE_URL}/search?pattern={quote_plus(pattern)}"
+                html = http_get(search_url, timeout=30.0)
+                
+                # Parse search results
+                from kiwix_chat.kiwix.parser import KiwixSearchParser
+                parser = KiwixSearchParser()
+                parser.feed(html)
+                
+                for href in parser.hrefs:
+                    if href not in seen_hrefs:
+                        seen_hrefs.add(href)
+                        title = href.split('/')[-1].replace('_', ' ')
+                        yield (title, href)
+            
+            except Exception as e:
+                # Silently skip failed search patterns
+                continue
 
 
 def read_zim_article(zim_file_path: str, href: str) -> Optional[str]:
