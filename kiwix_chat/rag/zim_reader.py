@@ -61,11 +61,15 @@ def list_zim_articles(zim_file_path: str) -> Iterator[Tuple[str, str]]:
     
     # Fallback: Try search patterns if sitemap failed
     if not sitemap_success:
+        print(f"[rag] Trying search patterns to discover articles...", file=sys.stderr)
         search_patterns = [
             "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
             "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
             "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
         ]
+        
+        found_count = 0
+        failed_count = 0
         
         for pattern in search_patterns:
             try:
@@ -78,15 +82,47 @@ def list_zim_articles(zim_file_path: str) -> Iterator[Tuple[str, str]]:
                 parser = KiwixSearchParser()
                 parser.feed(html)
                 
+                pattern_found = 0
                 for href in parser.hrefs:
                     if href not in seen_hrefs:
                         seen_hrefs.add(href)
                         title = href.split('/')[-1].replace('_', ' ')
                         yield (title, href)
+                        found_count += 1
+                        pattern_found += 1
+                
+                if pattern_found > 0:
+                    print(f"[rag] Pattern '{pattern}': found {pattern_found} articles", file=sys.stderr)
             
             except Exception as e:
-                # Silently skip failed search patterns
+                failed_count += 1
+                if failed_count <= 3:  # Only show first few errors
+                    print(f"[rag] Pattern '{pattern}' failed: {e}", file=sys.stderr)
                 continue
+        
+        if found_count > 0:
+            print(f"[rag] Found {found_count} articles from search patterns", file=sys.stderr)
+        else:
+            # Last resort: Try accessing root page and parsing links
+            print(f"[rag] Search patterns found no articles, trying root page...", file=sys.stderr)
+            try:
+                root_html = http_get(f"{KIWIX_BASE_URL}/", timeout=30.0)
+                from kiwix_chat.kiwix.parser import HTMLParserWithLinks
+                parser = HTMLParserWithLinks()
+                parser.feed(root_html)
+                
+                for href in parser.hrefs:
+                    if href.startswith('/A/') or href.startswith('/wiki/'):
+                        if href not in seen_hrefs:
+                            seen_hrefs.add(href)
+                            title = href.split('/')[-1].replace('_', ' ')
+                            yield (title, href)
+                            found_count += 1
+                
+                if found_count > 0:
+                    print(f"[rag] Found {found_count} articles from root page links", file=sys.stderr)
+            except Exception as e:
+                print(f"[rag] Root page method also failed: {e}", file=sys.stderr)
 
 
 def read_zim_article(zim_file_path: str, href: str) -> Optional[str]:
