@@ -12,7 +12,7 @@ Universal terminal chat app for Ollama with local Kiwix content integration. Fea
 **⚠️ Platform Note:** For now this software is currently Linux-only. Windows and macOS support may be added in the future.
 
 **⚠️ Disclaimer:** This software is provided "as is" without warranty. The author is not responsible for any misuse, damage, or consequences resulting from the use of this software. See [DISCLAIMER.md](DISCLAIMER.md) for full details.
-<img width="899" height="677" alt="Screenshot_20251203_161223" src="https://github.com/user-attachments/assets/ac074bcf-5589-4723-8f0c-e1a005944d96" />
+<img width="899" height="696" alt="Screenshot_20251203_174305" src="https://github.com/user-attachments/assets/9fb291ad-fe97-4c5b-8601-6651b5ccdc0d" />
 
 ## Features
 
