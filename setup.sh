@@ -68,12 +68,16 @@ if [ "$VERIFIED" = false ]; then
             echo "  ✓ Installed and verified with --user flag"
         else
             # Sometimes --user installs but Python can't find them
-            # Try adding user site-packages to path
-            export PYTHONPATH="${HOME}/.local/lib/python3.*/site-packages:$PYTHONPATH"
-            if verify_install; then
-                INSTALL_SUCCESS=true
-                VERIFIED=true
-                echo "  ✓ Installed with --user flag (found in user site-packages)"
+            # Try adding user site-packages to path (find actual Python version)
+            PYTHON_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+            USER_SITE="${HOME}/.local/lib/python${PYTHON_VERSION}/site-packages"
+            if [ -d "$USER_SITE" ]; then
+                export PYTHONPATH="${USER_SITE}:${PYTHONPATH}"
+                if verify_install; then
+                    INSTALL_SUCCESS=true
+                    VERIFIED=true
+                    echo "  ✓ Installed with --user flag (found in user site-packages)"
+                fi
             fi
         fi
     fi
