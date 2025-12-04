@@ -25,7 +25,6 @@ def initialize_embedding_model():
     try:
         from sentence_transformers import SentenceTransformer
         print(f"[rag] Loading embedding model: {_embedding_model_name}", file=sys.stderr)
-        print(f"[rag] This is the same BGE model used by Perplexica", file=sys.stderr)
         print(f"[rag] First-time download may take a few minutes (~110MB)...", file=sys.stderr)
         
         # BGE models need instruction prefix for queries
