@@ -8,17 +8,17 @@ A powerful offline-capable chatbot with **Retrieval-Augmented Generation (RAG)**
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ DISCLAIMER OF LIABILITY                                       │
+│ DISCLAIMER OF LIABILITY                                      │
 ├──────────────────────────────────────────────────────────────┤
 │ This software is provided "as is" without warranty of any    │
 │ kind. The author(s) and contributors are not responsible for │
 │ any misuse, damage, or consequences arising from the use of  │
-│ this software.                                                │
+│ this software.                                               │
 │                                                              │
 │ Users are solely responsible for:                            │
 │ • Compliance with applicable laws and regulations            │
-│ • Ethical use of AI technology                                │
-│ • Content generated or accessed through this software         │
+│ • Ethical use of AI technology                               │
+│ • Content generated or accessed through this software        │
 │ • Any actions taken based on information from this software  │
 │                                                              │
 │ By using this software, you agree to use it responsibly and  │
@@ -32,11 +32,11 @@ A powerful offline-capable chatbot with **Retrieval-Augmented Generation (RAG)**
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ • AI Chat Interface: Beautiful GUI built with tkinter          │
+│ • AI Chat Interface: Beautiful GUI built with tkinter           │
 │ • Offline Knowledge Base: Works with ZIM files                  │
-│ • Hybrid Search: Semantic (FAISS) + keyword (BM25) search      │
-│ • Just-In-Time Indexing: Auto-indexes articles on-the-fly      │
-│ • Modern UI: Dark/light mode, autocomplete, shortcuts          │
+│ • Hybrid Search: Semantic (FAISS) + keyword (BM25) search       │
+│ • Just-In-Time Indexing: Auto-indexes articles on-the-fly       │
+│ • Modern UI: Dark/light mode, autocomplete, shortcuts           │
 │ • Multiple Models: Switch between any Ollama model              │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -59,9 +59,9 @@ A powerful offline-capable chatbot with **Retrieval-Augmented Generation (RAG)**
 **1. Hybrid Retrieval**
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Dense Search (FAISS)    → Semantic similarity via embeddings │
-│ Sparse Search (BM25)    → Keyword-based matching             │
-│ Reciprocal Rank Fusion  → Combines both for optimal results  │
+│ Dense Search (FAISS)    → Semantic similarity via embeddings│
+│ Sparse Search (BM25)    → Keyword-based matching            │
+│ Reciprocal Rank Fusion  → Combines both for optimal results │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -83,11 +83,11 @@ A powerful offline-capable chatbot with **Retrieval-Augmented Generation (RAG)**
 ### Prerequisites
 
 ```
-┌─────────────────────────────────────────┐
-│ • Linux (tested on Ubuntu/Debian)       │
-│ • Python 3.8+                           │
+┌──────────────────────────────────────────┐
+│ • Linux (tested on Ubuntu/Debian)        │
+│ • Python 3.8+                            │
 │ • Internet connection (for initial setup)│
-└─────────────────────────────────────────┘
+└──────────────────────────────────────────┘
 ```
 
 ### Installation Steps
@@ -161,13 +161,13 @@ python3 run_chatbot.py
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ Command          │ Action                                     │
+│ Command          │ Action                                    │
 ├──────────────────┼───────────────────────────────────────────┤
-│ /help            │ Show help menu                             │
-│ /clear           │ Clear chat history                         │
-│ /dark            │ Toggle dark/light mode                     │
-│ /model           │ Switch to a different Ollama model         │
-│ /exit or :q      │ Quit the application                       │
+│ /help            │ Show help menu                            │
+│ /clear           │ Clear chat history                        │
+│ /dark            │ Toggle dark/light mode                    │
+│ /model           │ Switch to a different Ollama model        │
+│ /exit or :q      │ Quit the application                      │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -175,12 +175,12 @@ python3 run_chatbot.py
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ Enter              │ Send message                              │
-│ Highlight + Enter  │ Auto-paste and query selected text       │
-│ Ctrl+Click         │ Select word and query it                  │
-│ ↑↓                 │ Navigate autocomplete suggestions          │
-│ Tab                │ Select autocomplete suggestion            │
-│ Esc                │ Close dialogs                             │
+│ Enter              │ Send message                            │
+│ Highlight + Enter  │ Auto-paste and query selected text      │
+│ Ctrl+Click         │ Select word and query it                │
+│ ↑↓                 │ Navigate autocomplete suggestions       │
+│ Tab                │ Select autocomplete suggestion          │
+│ Esc                │ Close dialogs                           │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -211,9 +211,9 @@ DEFAULT_MODEL = "llama3.2:1b"  # Change to your preferred model
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │ Setting           │ Value                                    │
-├──────────────────┼───────────────────────────────────────────┤
+├───────────────────┼──────────────────────────────────────────┤
 │ Embedding Model   │ all-MiniLM-L6-v2 (fast, efficient)       │
-│ Top-K Results     │ 3 chunks per query                        │
+│ Top-K Results     │ 3 chunks per query                       │
 │ Chunk Size        │ 500 words with 50-word overlap           │
 └──────────────────────────────────────────────────────────────┘
 ```
@@ -226,12 +226,12 @@ DEFAULT_MODEL = "llama3.2:1b"  # Change to your preferred model
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ libzim              │ ZIM file reading                        │
-│ sentence-transformers│ Text embeddings                         │
-│ faiss-cpu           │ Vector similarity search                 │
-│ rank_bm25           │ Keyword search                           │
-│ beautifulsoup4      │ HTML parsing                             │
-│ tkinter             │ GUI (usually pre-installed with Python)  │
+│ libzim              │ ZIM file reading                       │
+│ sentence-transformers│ Text embeddings                       │
+│ faiss-cpu           │ Vector similarity search               │
+│ rank_bm25           │ Keyword search                         │
+│ beautifulsoup4      │ HTML parsing                           │
+│ tkinter             │ GUI (usually pre-installed with Python)│
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -243,10 +243,10 @@ DEFAULT_MODEL = "llama3.2:1b"  # Change to your preferred model
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ • Offline Wikipedia    │ Ask questions without internet       │
-│ • Documentation Chat   │ Chat with Python docs, manuals       │
-│ • Research Assistant   │ Query large knowledge bases locally   │
-│ • Educational Tool     │ Learn from offline encyclopedias      │
+│ • Offline Wikipedia    │ Ask questions without internet      │
+│ • Documentation Chat   │ Chat with Python docs, manuals      │
+│ • Research Assistant   │ Query large knowledge bases locally │
+│ • Educational Tool     │ Learn from offline encyclopedias    │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -280,8 +280,8 @@ ollama pull llama3.2:1b
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ • Works without ZIM file, but no RAG capabilities           │
-│ • First-time setup downloads ~1GB (Ollama + model + deps)   │
+│ • Works without ZIM file, but no RAG capabilities            │
+│ • First-time setup downloads ~1GB (Ollama + model + deps)    │
 │ • GPU acceleration automatic if CUDA available               │
 │ • All data stays local - no internet required after setup    │
 └──────────────────────────────────────────────────────────────┘
