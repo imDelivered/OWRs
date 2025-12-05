@@ -67,7 +67,7 @@ A powerful offline-capable chatbot with **Retrieval-Augmented Generation (RAG)**
 
 **2. Just-In-Time Indexing**
 - No need to pre-index the entire ZIM file
-- Articles are indexed automatically when relevant to your query https://library.kiwix.org
+- Articles are indexed automatically when relevant to your query 
 - Fast startup, efficient memory usage
 
 **3. GUI Features**
