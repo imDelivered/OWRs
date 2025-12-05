@@ -92,7 +92,7 @@ A powerful offline-capable chatbot with **Retrieval-Augmented Generation (RAG)**
 
 ### Installation Steps
 
-**Step 2: Run the setup script**
+**Step 1: Run the setup script**
 ```bash
 chmod +x setup.sh
 ./setup.sh
@@ -106,12 +106,12 @@ chmod +x setup.sh
 > - Enables Ollama service
 > - Creates a `krag` command for easy access
 
-**Step 3: Add a ZIM file (optional but recommended)**
+**Step 2: Add a ZIM file (optional but recommended)**
 - Download a ZIM file (e.g., from [Kiwix](https://library.kiwix.org/))
 - Place it in the project directory (e.g., `wikipedia_en_all_maxi_2025-08.zim`)
 - The chatbot will automatically detect and use it
 
-**Step 4: Start the chatbot**
+**Step 3: Start the chatbot**
 ```bash
 krag
 ```
