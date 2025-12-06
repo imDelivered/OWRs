@@ -6,6 +6,53 @@ A powerful offline-capable chatbot with **Retrieval-Augmented Generation (RAG)**
 
 ---
 
+## Quick Setup
+
+### Prerequisites
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ • Linux (tested on Ubuntu/Debian)                                           │
+│ • Python 3.8+                                                               │
+│ • Internet connection (for initial setup)                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Installation Steps
+
+**Step 1: Run the setup script**
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+> **What the setup script does:**
+> - Installs Python and dependencies
+> - Sets up a virtual environment
+> - Installs Ollama
+> - Downloads AI models:
+>   - llama3.2:1b (default response model + Joint 1 & 3)
+>   - llama3.1:1b (alternative response model, optional)
+>   - qwen2.5:0.5b (Joint 2: article scoring)
+> - Enables Ollama service
+> - Creates a `krag` command for easy access
+
+**Step 2: Add a ZIM file (optional but recommended)**
+- Download a ZIM file (e.g., from [Kiwix](https://library.kiwix.org/))
+- Place it in the project directory (e.g., `wikipedia_en_all_maxi_2025-08.zim`)
+- The chatbot will automatically detect and use it
+
+**Step 3: Start the chatbot**
+```bash
+krag
+```
+
+Or run manually:
+```bash
+./run_chatbot.sh
+```
+
+<img width="895" height="700" alt="Screenshot_20251205_173826" src="https://github.com/user-attachments/assets/f4509a75-dd30-4344-af13-f1a5d5c293b6" />
 
 ---
 
@@ -51,98 +98,34 @@ A powerful offline-capable chatbot with **Retrieval-Augmented Generation (RAG)**
 
 ## How It Works
 
-### Multi-Joint RAG Architecture
-
-KiwixRAG uses an advanced **multi-joint architecture** where small AI reasoning models work together to ensure accurate, hallucination-free responses.
+KiwixRAG uses a **multi-joint architecture** where three small AI reasoning models work together to prevent hallucinations and ensure accurate responses.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         MULTI-JOINT RAG PIPELINE                           │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  User Query                                                                 │
-│       │                                                                     │
-│       ▼                                                                     │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  JOINT 1: Entity Extraction                                        │   │
-│  │  → Identifies core entities and resolves aliases for search        │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│       │                                                                     │
-│       ▼                                                                     │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  Dual-Path Search                                                  │   │
-│  │  → Parallel Semantic (Vector) and Keyword (BM25) discovery         │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│       │                                                                     │
-│       ▼                                                                     │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  JOINT 2: Article Scoring                                          │   │
-│  │  → Evaluates candidate articles for relevance to the entity        │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│       │                                                                     │
-│       ▼                                                                     │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  Just-In-Time Indexing                                             │   │
-│  │  → Dynamically chunks and indexes only high-relevance content      │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│       │                                                                     │
-│       ▼                                                                     │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  Hybrid Retrieval & Fusion                                         │   │
-│  │  → Retrieves chunks and ranks them via Reciprocal Rank Fusion      │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│       │                                                                     │
-│       ▼                                                                     │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  JOINT 3: Chunk Filtering                                          │   │
-│  │  → Semantic evaluation of chunks against the original query        │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│       │                                                                     │
-│       ▼                                                                     │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  Final LLM Generation                                              │   │
-│  │  → Synthesizes answer exclusively from verified context            │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
+│  User Query → JOINT 1 (Entity Extraction) → Dual-Path Search              │
+│       ↓                                                                     │
+│  JOINT 2 (Article Scoring) → Just-In-Time Indexing → Hybrid Retrieval      │
+│       ↓                                                                     │
+│  JOINT 3 (Chunk Filtering) → Final LLM Generation                          │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ![Architecture Diagram](architecture_diagram.png)
 
-### Key Innovation: Reasoning Joints
-
-Traditional RAG systems often retrieve irrelevant information, leading to hallucinations. KiwixRAG solves this with three specialized reasoning models:
+### Reasoning Joints
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  JOINT 1: Entity Extraction                                                │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  • Understands what you're really asking about                            │
-│  • Extracts entities and discovers aliases automatically                   │
-│  • Prevents searching for wrong topics                                     │
-│  • Model: llama3.2:1b (~500ms)                                            │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  JOINT 2: Article Scoring                                                  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  • Evaluates Wikipedia article relevance (0-10 scale)                      │
-│  • Selects only the most relevant articles for indexing                    │
-│  • Ensures high-quality knowledge base                                    │
-│  • Model: qwen2.5:0.5b (~400ms)                                            │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  JOINT 3: Chunk Filtering                                                  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  • Filters retrieved text chunks by query relevance                        │
-│  • Removes off-topic information                                           │
-│  • Keeps only content that directly answers your question                 │
-│  • Model: llama3.2:1b (~400ms)                                             │
+│  JOINT 1: Entity Extraction (llama3.2:1b)                                 │
+│  JOINT 2: Article Scoring (qwen2.5:0.5b)                                   │
+│  JOINT 3: Chunk Filtering (llama3.2:1b)                                    │
+│                                                                             │
+│  These three models work together to extract entities, score articles,     │
+│  and filter chunks, ensuring only relevant information reaches the LLM.    │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -150,84 +133,11 @@ Traditional RAG systems often retrieve irrelevant information, leading to halluc
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  Hybrid Retrieval Pipeline                                                 │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  • Dense Search (FAISS): Semantic similarity using embeddings             │
-│  • Sparse Search (BM25): Keyword-based matching                           │
-│  • Reciprocal Rank Fusion: Combines both methods for best results         │
+│  • Hybrid Retrieval: FAISS (semantic) + BM25 (keyword) search              │
+│  • Just-In-Time Indexing: Articles indexed on-the-fly as needed            │
+│  • Modern GUI: Streaming responses, autocomplete, dark/light mode          │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  Just-In-Time Indexing                                                     │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  • No need to pre-index entire ZIM files                                  │
-│  • Articles indexed on-the-fly as needed                                  │
-│  • Efficient memory usage                                                  │
-│  • Faster startup, slower first queries                                    │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  Modern GUI                                                                │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  • Real-time streaming responses                                           │
-│  • Query history and autocomplete                                          │
-│  • Keyboard shortcuts and quick queries                                    │
-│  • Dark/light mode toggle                                                  │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Quick Setup  -ˋˏ✄┈┈┈┈
-
-### Prerequisites
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ • Linux (tested on Ubuntu/Debian)                                           │
-│ • Python 3.8+                                                               │
-│ • Internet connection (for initial setup)                                   │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Installation Steps
-
-**Step 1: Run the setup script**
-```bash
-chmod +x setup.sh
-./setup.sh
-```
-
-> **What the setup script does:**
-> - Installs Python and dependencies
-> - Sets up a virtual environment
-> - Installs Ollama
-> - Downloads AI models:
->   - llama3.2:1b (default response model + Joint 1 & 3)
->   - llama3.1:1b (alternative response model, optional)
->   - qwen2.5:0.5b (Joint 2: article scoring)
-> - Enables Ollama service
-> - Creates a `krag` command for easy access
-**Step 2: Add a ZIM file (optional but recommended)**
-- Download a ZIM file (e.g., from [Kiwix](https://library.kiwix.org/))
-- Place it in the project directory (e.g., `wikipedia_en_all_maxi_2025-08.zim`)
-- The chatbot will automatically detect and use it
-
-**Step 3: Start the chatbot**
-```bash
-krag
-```
-
-Or run manually:
-```bash
-./run_chatbot.sh
-```
-<img width="895" height="700" alt="Screenshot_20251205_173826" src="https://github.com/user-attachments/assets/f4509a75-dd30-4344-af13-f1a5d5c293b6" />
-
 
 ---
 
