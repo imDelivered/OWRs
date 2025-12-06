@@ -5,7 +5,7 @@ from typing import List, Iterable
 from urllib.request import Request, urlopen
 from urllib.error import URLError
 
-from chatbot.config import OLLAMA_CHAT_URL
+from chatbot.config import OLLAMA_CHAT_URL, STRICT_RAG_MODE
 from chatbot.models import Message
 
 
@@ -102,7 +102,12 @@ def build_messages(system_prompt: str, history: List[Message], user_query: str =
                                 "DO NOT generate or hallucinate bibliography entries like 'CNN' or 'LA Times' unless they are explicitly mentioned in the text body as quotes.\n" \
                                 "If the answer is not in the context, state that you do not know."
             else:
-                context_text = "\n[SYSTEM NOTICE]: No relevant documents found in the local index. Answering based on general knowledge.\n"
+                if STRICT_RAG_MODE:
+                    context_text = "\n[SYSTEM NOTICE]: No relevant documents found in the local index.\n" \
+                                   "Instructions: You MUST refuse to answer the user's question because no relevant context was found.\n" \
+                                   "Reply EXACTLY with: 'I do not have enough information in my knowledge base to answer this question.'"
+                else:
+                    context_text = "\n[SYSTEM NOTICE]: No relevant documents found in the local index. Answering based on general knowledge.\n"
         except Exception as e:
             print(f"RAG retrieval error: {e}")
 
