@@ -108,7 +108,7 @@ KiwixRAG uses a **multi-joint architecture** where three small AI reasoning mode
 │  User Query → JOINT 1 (Entity Extraction) → Dual-Path Search              │
 │       ↓                                                                     │
 │  JOINT 2 (Article Scoring) → Just-In-Time Indexing → Hybrid Retrieval      │
-│       ↓                                                                     │
+│       ↓                    (Hugging Face: all-MiniLM-L6-v2)                 │
 │  JOINT 3 (Chunk Filtering) → Final LLM Generation                          │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -133,7 +133,8 @@ KiwixRAG uses a **multi-joint architecture** where three small AI reasoning mode
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  • Hybrid Retrieval: FAISS (semantic) + BM25 (keyword) search              │
+│  • Embeddings: Hugging Face all-MiniLM-L6-v2 (semantic search)              │
+│  • Hybrid Retrieval: FAISS (vector) + BM25 (keyword) search                │
 │  • Just-In-Time Indexing: Articles indexed on-the-fly as needed            │
 │  • Modern GUI: Streaming responses, autocomplete, dark/light mode          │
 └─────────────────────────────────────────────────────────────────────────────┘
