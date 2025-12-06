@@ -95,7 +95,7 @@ A powerful offline-capable chatbot with **Retrieval-Augmented Generation (RAG)**
 
 ---
 
-## Quick Setup
+##             Quick Setup
 
 ### Prerequisites
 
