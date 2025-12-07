@@ -99,17 +99,8 @@ Return ONLY valid JSON with this exact structure:
   "aliases": ["alternate names or spellings"]
 }}
 
-Examples:
-Query: "how did tupac die?"
-Output: {{"entity": "Tupac Shakur", "entity_type": "person", "action": "death", "aliases": ["2Pac", "Makaveli", "Tupac Amaru Shakur"]}}
-
-Query: "what is the eiffel tower"
-Output: {{"entity": "Eiffel Tower", "entity_type": "place", "action": "information", "aliases": ["Tour Eiffel"]}}
-
-Query: "when was world war 2"
-Output: {{"entity": "World War II", "entity_type": "event", "action": "timeframe", "aliases": ["WW2", "WWII", "Second World War"]}}
-
-Now extract for the query above. Return ONLY the JSON, no explanation."""
+Do not include any examples. Return ONLY the JSON object.
+"""
 
         try:
             response = ollama_call(self.model, prompt, self.temperature, config.JOINT_TIMEOUT)
