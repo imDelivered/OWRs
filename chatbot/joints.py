@@ -126,68 +126,111 @@ class EntityExtractorJoint:
     
     def extract(self, query: str) -> Dict[str, any]:
         """
-        Extract entity information from query.
+        Extract ALL entities from query, with comparison detection.
         
         Args:
             query: User query string
             
         Returns:
-            Dict with keys: entity, entity_type, action, aliases
+            Dict with keys: is_comparison, entities (list), action
+            Each entity has: name, type, aliases
         """
         debug_print("JOINT1:ENTITY", f"Extracting entities from: '{query}'")
         start_time = time.time()
         
-        prompt = f"""You are an entity extraction system. Extract the main entity from this query.
+        prompt = f"""You are a multi-entity extraction system. Extract ALL distinct entities or topics from this query.
 
 Query: {query}
 
+COMPARISON DETECTION:
+If the query compares two or more things (using words like: compare, vs, versus, difference, 
+older, newer, larger, smaller, faster, slower, better, worse, between, which is, or, and), 
+set is_comparison to true.
+
+INSTRUCTIONS:
+1. Identify EVERY distinct entity, concept, or topic mentioned in the query
+2. For comparison queries, you MUST extract ALL entities being compared
+3. Each entity should have its canonical/full name (e.g., "Roman Empire" not just "Roman")
+4. Include relevant aliases or alternate names
+
 Return ONLY valid JSON with this exact structure:
 {{
-  "entity": "full entity name",
-  "entity_type": "person|place|event|concept",
-  "action": "what question/action about entity",
-  "aliases": ["alternate names or spellings"]
+  "is_comparison": true,
+  "entities": [
+    {{"name": "Entity One Full Name", "type": "person|place|event|concept|technology|organization", "aliases": ["alternate name"]}},
+    {{"name": "Entity Two Full Name", "type": "person|place|event|concept|technology|organization", "aliases": []}}
+  ],
+  "action": "what the user wants to know about these entities"
 }}
 
-Do not include any examples. Return ONLY the JSON object.
+CRITICAL: For comparison queries, you MUST return multiple entities. Do not return only one.
+Do not include any examples or explanation. Return ONLY the JSON object.
 """
 
         try:
             response = ollama_call(self.model, prompt, self.temperature, config.JOINT_TIMEOUT)
-            debug_print("JOINT1:ENTITY", f"Raw response: {response[:200]}...")
+            debug_print("JOINT1:ENTITY", f"Raw response: {response[:300]}...")
             
             # Use robust extractor
             result = extract_json_from_text(response)
             
-            # Fix for Issue 1: Joint 1 Entity Extraction Crash (Type Mismatch)
-            # If the model returns a list (e.g. [{"entity": ...}]), take the first item.
+            # Handle if model returns a list wrapper
             if isinstance(result, list):
                 if result:
                     result = result[0]
                 else:
-                     raise ValueError("Received empty list from model")
+                    raise ValueError("Received empty list from model")
             
-            # Validate result structure
-            required_keys = ['entity', 'entity_type', 'action', 'aliases']
-            if not all(k in result for k in required_keys):
-                raise ValueError(f"Missing required keys. Got: {result.keys()}")
+            # Validate new result structure
+            if 'entities' not in result:
+                # Try to convert old format to new format
+                if 'entity' in result:
+                    debug_print("JOINT1:ENTITY", "Converting old format to new multi-entity format")
+                    result = {
+                        'is_comparison': False,
+                        'entities': [{
+                            'name': result.get('entity', query),
+                            'type': result.get('entity_type', 'unknown'),
+                            'aliases': result.get('aliases', [])
+                        }],
+                        'action': result.get('action', 'information')
+                    }
+                else:
+                    raise ValueError(f"Missing 'entities' key. Got: {result.keys()}")
+            
+            # Ensure entities is a list
+            if not isinstance(result.get('entities'), list):
+                raise ValueError(f"'entities' must be a list, got {type(result.get('entities'))}")
+            
+            # Ensure each entity has required keys
+            for i, entity in enumerate(result['entities']):
+                if 'name' not in entity:
+                    raise ValueError(f"Entity {i} missing 'name' key")
+                # Set defaults for optional fields
+                entity.setdefault('type', 'unknown')
+                entity.setdefault('aliases', [])
             
             elapsed = time.time() - start_time
-            debug_print("JOINT1:ENTITY", f"Extracted: entity='{result['entity']}', type={result['entity_type']}, action={result['action']}")
-            debug_print("JOINT1:ENTITY", f"Aliases: {result['aliases']}")
+            entity_names = [e['name'] for e in result['entities']]
+            debug_print("JOINT1:ENTITY", f"Extracted {len(result['entities'])} entities: {entity_names}")
+            debug_print("JOINT1:ENTITY", f"Is comparison: {result.get('is_comparison', False)}")
+            debug_print("JOINT1:ENTITY", f"Action: {result.get('action', 'N/A')}")
             debug_print("JOINT1:ENTITY", f"Extraction took {elapsed:.2f}s")
             
             return result
             
         except Exception as e:
             debug_print("JOINT1:ENTITY", f"Extraction failed: {type(e).__name__}: {e}")
-            # Fallback: return query as entity
-            debug_print("JOINT1:ENTITY", "Using fallback: query as entity")
+            # Fallback: return query as single entity in new format
+            debug_print("JOINT1:ENTITY", "Using fallback: query as single entity")
             return {
-                "entity": query,
-                "entity_type": "unknown",
-                "action": "information",
-                "aliases": []
+                "is_comparison": False,
+                "entities": [{
+                    "name": query,
+                    "type": "unknown",
+                    "aliases": []
+                }],
+                "action": "information"
             }
 
 
@@ -206,10 +249,10 @@ class ArticleScorerJoint:
     
     def score(self, entity_info: Dict, article_titles: List[str], top_k: int = 5) -> List[Tuple[str, float]]:
         """
-        Score article titles by relevance to entity.
+        Score article titles by relevance to entities.
         
         Args:
-            entity_info: Entity information from EntityExtractorJoint
+            entity_info: Entity information from EntityExtractorJoint (new multi-entity format)
             article_titles: List of Wikipedia article titles
             top_k: Return top K scored articles
             
@@ -220,39 +263,62 @@ class ArticleScorerJoint:
             debug_print("JOINT2:SCORER", "No articles to score")
             return []
         
-        debug_print("JOINT2:SCORER", f"Scoring {len(article_titles)} articles for entity '{entity_info['entity']}'")
+        # Extract all entity names and aliases from new format
+        all_entity_names = []
+        for entity in entity_info.get('entities', []):
+            all_entity_names.append(entity.get('name', ''))
+            all_entity_names.extend(entity.get('aliases', []))
+        
+        # Filter out empty strings
+        all_entity_names = [n for n in all_entity_names if n]
+        
+        # Backwards compatibility: support old format
+        if not all_entity_names and 'entity' in entity_info:
+            all_entity_names = [entity_info['entity']] + entity_info.get('aliases', [])
+        
+        entities_display = [e.get('name', '') for e in entity_info.get('entities', [])]
+        debug_print("JOINT2:SCORER", f"Scoring {len(article_titles)} articles for entities: {entities_display}")
         start_time = time.time()
         
         # === EXACT MATCH OVERRIDE ===
         # Before LLM scoring, check for exact entity matches
         # These get score 11.0 (above max 10) to guarantee inclusion
-        entity_name = entity_info['entity'].lower().strip()
         exact_match_scores = []
         
         for title in article_titles:
-            if title.lower().strip() == entity_name:
-                debug_print("JOINT2:SCORER", f"EXACT MATCH OVERRIDE: '{title}' == entity '{entity_info['entity']}' -> score 11.0")
-                exact_match_scores.append((title, 11.0))
+            title_lower = title.lower().strip()
+            for entity_name in all_entity_names:
+                if title_lower == entity_name.lower().strip():
+                    debug_print("JOINT2:SCORER", f"EXACT MATCH OVERRIDE: '{title}' == entity '{entity_name}' -> score 11.0")
+                    exact_match_scores.append((title, 11.0))
+                    break  # Only add once per title
         
         debug_print("JOINT2:SCORER", f"Found {len(exact_match_scores)} exact entity matches")
         
         # Format article titles for prompt (limit to prevent token overflow)
         articles_formatted = "\n".join([f"{i+1}. {title}" for i, title in enumerate(article_titles[:20])])
         
+        # Format entities for prompt
+        entities_str = ", ".join([f"'{e.get('name', '')}'" for e in entity_info.get('entities', [])])
+        action = entity_info.get('action', 'information about')
+        
         prompt = f"""I will give you a list of Article Titles.
-        You must select the ones relevant to the query: "{entity_info['action']}" ('{entity_info['entity']}')
+        You must select the ones relevant to ANY of these entities: {entities_str}
+        The user wants to: {action}
         
         RULES:
         1. ONLY select titles from the provided INPUT LIST below.
         2. DO NOT output example titles.
         3. Output valid JSON only.
+        4. For COMPARISON queries, include articles for ALL mentioned entities.
         
         INPUT LIST:
         {articles_formatted}
         
         Rate each article 0-10 where:
-        - 10 = Perfect match
-        - 0 = Not relevant
+        - 10 = Perfect match for one of the queried entities
+        - 7-9 = Highly relevant to one of the entities
+        - 0 = Not relevant to any entity
         
         Return ONLY a JSON array:
         [
@@ -273,7 +339,7 @@ class ArticleScorerJoint:
             # Helper: Normalize a title for fuzzy matching
             def normalize_title(t: str) -> str:
                 """Lowercase and remove commas/punctuation for comparison."""
-                return re.sub(r'[,.:;\'"-]+', '', t.lower()).strip()
+                return re.sub(r'[,.:;\'\"-]+', '', t.lower()).strip()
             
             def fuzzy_match(llm_title: str, candidates: List[str]) -> Optional[str]:
                 """
@@ -358,7 +424,7 @@ class ChunkFilterJoint:
         self.temperature = config.FILTER_JOINT_TEMP
         debug_print("JOINT3:INIT", f"ChunkFilter initialized with {self.model}")
     
-    def filter(self, query: str, chunks: List[Dict], top_k: int = 5) -> List[Dict]:
+    def filter(self, query: str, chunks: List[Dict], top_k: int = 5, entity_info: Dict = None) -> List[Dict]:
         """
         Filter chunks by query relevance.
         
@@ -366,6 +432,7 @@ class ChunkFilterJoint:
             query: Original user query
             chunks: List of chunk dicts with 'text' and 'metadata' keys
             top_k: Return top K relevant chunks
+            entity_info: Optional entity info for comparison-aware filtering
             
         Returns:
             List of chunk dicts, sorted by relevance
@@ -374,8 +441,20 @@ class ChunkFilterJoint:
             debug_print("JOINT3:FILTER", "No chunks to filter")
             return []
         
+        # Check if this is a comparison query
+        is_comparison = entity_info.get('is_comparison', False) if entity_info else False
+        entities = entity_info.get('entities', []) if entity_info else []
+        entity_names = [e.get('name', '').lower() for e in entities]
+        
         debug_print("JOINT3:FILTER", f"Filtering {len(chunks)} chunks for query '{query}'")
+        debug_print("JOINT3:FILTER", f"Is comparison: {is_comparison}, Entities: {entity_names}")
         start_time = time.time()
+        
+        # For comparison queries, use diversity-aware selection as primary strategy
+        # This ensures we get chunks from ALL entities
+        if is_comparison and len(entity_names) >= 2:
+            debug_print("JOINT3:FILTER", "Using diversity-aware selection for comparison query")
+            return self._diversity_filter(chunks, entity_names, top_k)
         
         # Format chunks for prompt (truncate long chunks, limit to 20)
         chunks_formatted = []
@@ -408,7 +487,8 @@ Return ONLY a JSON array:
 Rate ALL chunks. No explanation, only JSON."""
 
         try:
-            response = ollama_call(self.model, prompt, self.temperature, config.JOINT_TIMEOUT)
+            # Use longer timeout for chunk filtering since it processes more text
+            response = ollama_call(self.model, prompt, self.temperature, timeout=config.JOINT_TIMEOUT + 5)
             debug_print("JOINT3:FILTER", f"Raw response: {response[:200]}...")
             
             # Robust JSON Lines parsing helper
@@ -498,3 +578,72 @@ Rate ALL chunks. No explanation, only JSON."""
             # Fallback: return original chunks (use existing scores if available)
             debug_print("JOINT3:FILTER", "Using fallback: original chunk order")
             return chunks[:top_k]
+
+    def _diversity_filter(self, chunks: List[Dict], entity_names: List[str], top_k: int) -> List[Dict]:
+        """
+        Diversity-aware chunk selection that ensures coverage of all entities.
+        
+        For comparison queries, we need chunks from EACH entity to provide
+        a balanced answer.
+        """
+        debug_print("JOINT3:FILTER", f"Diversity filter: finding chunks for {len(entity_names)} entities")
+        
+        # Group chunks by which entity they likely belong to
+        entity_chunks = {name: [] for name in entity_names}
+        entity_chunks['other'] = []
+        
+        for chunk in chunks:
+            chunk_text = chunk.get('text', '').lower()
+            chunk_title = chunk.get('metadata', {}).get('title', '').lower()
+            matched = False
+            
+            for entity_name in entity_names:
+                # Check if chunk is about this entity (by text or title)
+                if entity_name in chunk_text or entity_name in chunk_title:
+                    entity_chunks[entity_name].append(chunk)
+                    matched = True
+                    break
+            
+            if not matched:
+                entity_chunks['other'].append(chunk)
+        
+        # Log distribution
+        for name, c_list in entity_chunks.items():
+            debug_print("JOINT3:FILTER", f"  Entity '{name}': {len(c_list)} chunks")
+        
+        # Allocate slots proportionally, but ensure minimum per entity
+        num_entities = len(entity_names)
+        min_per_entity = max(1, top_k // (num_entities + 1))  # +1 for 'other'
+        slots_remaining = top_k
+        
+        selected = []
+        
+        # First pass: select min_per_entity from each entity
+        for entity_name in entity_names:
+            entity_list = entity_chunks[entity_name]
+            to_take = min(min_per_entity, len(entity_list), slots_remaining)
+            selected.extend(entity_list[:to_take])
+            slots_remaining -= to_take
+        
+        # Second pass: fill remaining slots with best remaining chunks
+        if slots_remaining > 0:
+            # Collect all unused chunks
+            used_ids = {id(c) for c in selected}
+            remaining = []
+            for name, c_list in entity_chunks.items():
+                for chunk in c_list:
+                    if id(chunk) not in used_ids:
+                        remaining.append(chunk)
+            
+            # Sort by RRF score if available, otherwise just take in order
+            remaining.sort(key=lambda x: x.get('rrf_score', 0), reverse=True)
+            selected.extend(remaining[:slots_remaining])
+        
+        # Add relevance scores for consistency
+        for i, chunk in enumerate(selected):
+            if 'relevance_score' not in chunk:
+                chunk['relevance_score'] = 8.0 - (i * 0.5)  # Descending scores
+        
+        debug_print("JOINT3:FILTER", f"Diversity filter selected {len(selected)} chunks")
+        return selected
+

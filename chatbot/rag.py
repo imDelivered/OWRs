@@ -288,15 +288,33 @@ class RAGSystem:
         debug_print("-" * 70)
         debug_print("PHASE 0: JUST-IN-TIME INDEXING")
         try:
-            # 0a. Entity Extraction (Joint 1)
+            # 0a. Entity Extraction (Joint 1) - Now supports multiple entities
             entity_info = None
             search_terms = [query]
+            is_comparison = False
             
             if self.use_joints and self.entity_joint:
                 debug_print("0a. Entity extraction with Joint 1...")
                 entity_info = self.entity_joint.extract(query)
-                # Use entity and aliases for search
-                search_terms = [entity_info['entity']] + entity_info.get('aliases', [])
+                
+                # Extract search terms from ALL entities (new multi-entity format)
+                search_terms = []
+                entities = entity_info.get('entities', [])
+                is_comparison = entity_info.get('is_comparison', False)
+                
+                for entity in entities:
+                    entity_name = entity.get('name', '')
+                    if entity_name:
+                        search_terms.append(entity_name)
+                    # Also add aliases
+                    search_terms.extend(entity.get('aliases', []))
+                
+                # Fallback if entities list is empty
+                if not search_terms:
+                    search_terms = [query]
+                
+                debug_print(f"Is comparison query: {is_comparison}")
+                debug_print(f"Extracted {len(entities)} entities: {[e.get('name', '') for e in entities]}")
                 debug_print(f"Search terms expanded to: {search_terms}")
             else:
                 debug_print("0a. Skipping entity extraction (joints disabled)")
@@ -306,8 +324,10 @@ class RAGSystem:
             seen_titles = set()
             
             # A. Keyword Search (using expanded terms if available)
+            # For comparison queries, search more terms to ensure coverage of all entities
             debug_print("0b. Performing keyword-based title search...")
-            for term in search_terms[:3]:  # Limit to top 3 terms
+            max_terms = 6 if is_comparison else 3  # More terms for comparison queries
+            for term in search_terms[:max_terms]:
                 keyword_candidates = self.search_by_title(term, full_text=True)
                 for c in keyword_candidates:
                     t = c['metadata']['title']
@@ -336,8 +356,10 @@ class RAGSystem:
             if self.use_joints and self.scorer_joint and entity_info and candidates:
                 debug_print("0d. Article scoring with Joint 2...")
                 candidate_titles = [c['metadata']['title'] for c in candidates]
-                # Increase to 7 articles to get more comprehensive coverage
-                scored_titles = self.scorer_joint.score(entity_info, candidate_titles, top_k=7)
+                # For comparison queries, increase top_k to ensure we get articles for all entities
+                scorer_top_k = 10 if is_comparison else 7
+                debug_print(f"Using scorer top_k={scorer_top_k} (is_comparison={is_comparison})")
+                scored_titles = self.scorer_joint.score(entity_info, candidate_titles, top_k=scorer_top_k)
                 
                 # Convert scored titles back to full candidate objects
                 title_to_candidate = {c['metadata']['title']: c for c in candidates}
@@ -347,9 +369,10 @@ class RAGSystem:
                 
                 debug_print(f"Joint 2 selected top {len(top_articles)} articles")
             else:
-                # Fallback: use all candidates (up to 7, sorted by semantic search)
+                # Fallback: use all candidates (up to 10 for comparison, 7 otherwise)
                 debug_print("0d. Skipping article scoring (joints disabled or no candidates)")
-                top_articles = candidates[:7]
+                fallback_k = 10 if is_comparison else 7
+                top_articles = candidates[:fallback_k]
 
             if top_articles:
                 article_titles = [a['metadata']['title'] for a in top_articles]
@@ -527,7 +550,8 @@ class RAGSystem:
             debug_print("Using Joint 3 for chunk filtering...")
             print("Filtering chunks with Joint 3...")
             try:
-                filtered_chunks = self.filter_joint.filter(query, chunks_to_filter, top_k)
+                # Pass entity_info for comparison-aware filtering
+                filtered_chunks = self.filter_joint.filter(query, chunks_to_filter, top_k, entity_info=entity_info)
                 debug_print(f"Joint 3 returned {len(filtered_chunks)} filtered chunks")
                 
                 # Convert back to (idx, score) format
