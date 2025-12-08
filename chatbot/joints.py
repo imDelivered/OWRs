@@ -138,34 +138,27 @@ class EntityExtractorJoint:
         debug_print("JOINT1:ENTITY", f"Extracting entities from: '{query}'")
         start_time = time.time()
         
-        prompt = f"""You are a multi-entity extraction system. Extract ALL distinct entities or topics from this query.
+        prompt = f"""You are a multi-entity extraction system.
 
-Query: {query}
+    INSTRUCTIONS:
+    1. Identify ALL distinct entities (people, places, things, events) in the query.
+    2. CHECK FOR COMPARISONS: If the user compares items (e.g. "vs", "compare", "difference", "and"), set "is_comparison": true.
+    3. EXTRACT ALIASES:
+       - Aliases must be SYNONYMS (e.g. "Biggie" -> "The Notorious B.I.G.").
+       - DO NOT list related people/rivals/family as aliases.
+       - Example: "Tupac" and "Biggie" are DIFFERENT. Do not list one as alias of other.
 
-COMPARISON DETECTION:
-If the query compares two or more things (using words like: compare, vs, versus, difference, 
-older, newer, larger, smaller, faster, slower, better, worse, between, which is, or, and), 
-set is_comparison to true.
+    Query: "{query}"
 
-INSTRUCTIONS:
-1. Identify EVERY distinct entity, concept, or topic mentioned in the query
-2. For comparison queries, you MUST extract ALL entities being compared
-3. Each entity should have its canonical/full name (e.g., "Roman Empire" not just "Roman")
-4. Include relevant aliases or alternate names
-
-Return ONLY valid JSON with this exact structure:
-{{
-  "is_comparison": true,
-  "entities": [
-    {{"name": "Entity One Full Name", "type": "person|place|event|concept|technology|organization", "aliases": ["alternate name"]}},
-    {{"name": "Entity Two Full Name", "type": "person|place|event|concept|technology|organization", "aliases": []}}
-  ],
-  "action": "what the user wants to know about these entities"
-}}
-
-CRITICAL: For comparison queries, you MUST return multiple entities. Do not return only one.
-Do not include any examples or explanation. Return ONLY the JSON object.
-"""
+    Return ONLY valid JSON with this exact structure:
+    {{
+      "is_comparison": true,
+      "entities": [
+        {{"name": "Entity Name", "type": "person|place|event|concept|technology|organization", "aliases": ["valid alias"]}}
+      ],
+      "action": "what the user wants to know"
+    }}
+    """
 
         try:
             response = ollama_call(self.model, prompt, self.temperature, config.JOINT_TIMEOUT)
