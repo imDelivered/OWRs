@@ -11,9 +11,28 @@ from chatbot.models import Message
 from chatbot import config
 
 
+
 def debug_print(msg: str):
     if config.DEBUG:
         print(f"[DEBUG:CHAT] {msg}", file=sys.stderr)
+
+
+# Global status callback for UI updates
+_status_callback = None
+
+def set_status_callback(callback):
+    """Set a callback function to receive status updates during RAG processing."""
+    global _status_callback
+    _status_callback = callback
+
+def _update_status(status: str):
+    """Call the status callback if set."""
+    global _status_callback
+    if _status_callback:
+        try:
+            _status_callback(status)
+        except:
+            pass
 
 
 def stream_chat(model: str, messages: List[dict]) -> Iterable[str]:
@@ -145,6 +164,7 @@ def build_messages(system_prompt: str, history: List[Message], user_query: str =
         
     intent = detect_intent(query_text or "")
     debug_print(f"Intent Detection Result: mode='{intent.mode_name}', should_retrieve={intent.should_retrieve}")
+    _update_status("Analyzing query")
     
     # 2. Retrieve context (If Intent allows)
     debug_print("-" * 60)
@@ -155,8 +175,10 @@ def build_messages(system_prompt: str, history: List[Message], user_query: str =
     if rag and query_text and intent.should_retrieve:
         debug_print(f"Conditions met for RAG retrieval: rag={rag is not None}, query_text='{query_text}', should_retrieve={intent.should_retrieve}")
         try:
+            _update_status("Searching knowledge base")
             debug_print(f"Calling rag.retrieve with query='{query_text}', top_k=8")
             results = rag.retrieve(query_text, top_k=8)
+            _update_status("Processing results")
             debug_print(f"RAG retrieve returned {len(results)} results")
             
             if results:

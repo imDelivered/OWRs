@@ -9,7 +9,7 @@ from typing import List, Tuple
 from urllib.request import Request, urlopen
 
 from chatbot.models import Message, ModelPlatform
-from chatbot.chat import stream_chat, full_chat, build_messages
+from chatbot.chat import stream_chat, full_chat, build_messages, set_status_callback
 from chatbot.config import DEFAULT_MODEL
 
 
@@ -147,12 +147,93 @@ class ChatbotGUI:
         self._draw_send_button = draw_send_button
         self.selected_text = ""
         
+        # Loading state management
+        self.is_loading = False
+        self.loading_text = ""
+        self.loading_animation_id = None
+        self.loading_pulse_step = 0
+        self.loading_pulse_direction = 1  # 1 = brightening, -1 = dimming
+        
         self.apply_theme()
         self.root.after(100, lambda: self.input_entry.focus_set())
     
     def update_status(self, text: str):
         """Update status (no-op for minimal UI)."""
         pass
+    
+    def show_loading(self, text: str = "Thinking"):
+        """Show loading state in input entry with pulsating text."""
+        self.is_loading = True
+        self.loading_text = text
+        self.loading_pulse_step = 0
+        self.loading_pulse_direction = 1
+        # Store original colors to restore later
+        self._loading_original_fg = self.input_entry.cget('fg')
+        self._update_loading_display()
+        self._animate_loading_pulse()
+    
+    def hide_loading(self):
+        """Hide loading state and restore input entry."""
+        self.is_loading = False
+        if self.loading_animation_id:
+            self.root.after_cancel(self.loading_animation_id)
+            self.loading_animation_id = None
+        # Restore original foreground color
+        if hasattr(self, '_loading_original_fg'):
+            self.input_entry.config(fg=self._loading_original_fg)
+        self.input_entry.delete(0, self.tk.END)
+        self.input_entry.focus_set()
+    
+    def update_loading_text(self, text: str):
+        """Update the loading text while keeping animation."""
+        if self.is_loading:
+            self.loading_text = text
+            self._update_loading_display()
+    
+    def _update_loading_display(self):
+        """Update the loading display with current text."""
+        if not self.is_loading:
+            return
+        display_text = f"{self.loading_text}..."
+        self.input_entry.delete(0, self.tk.END)
+        self.input_entry.insert(0, display_text)
+    
+    def _get_pulse_color(self) -> str:
+        """Get the current pulse color based on step."""
+        # Pulse between dim gray and bright text color
+        if self.dark_mode:
+            # Dark mode: pulse between #555555 (dim) and #FFFFFF (bright)
+            base_val = 85  # 0x55
+            range_val = 170  # 0xFF - 0x55
+        else:
+            # Light mode: pulse between #999999 (dim) and #000000 (bright)
+            base_val = 153  # 0x99
+            range_val = -153  # 0x00 - 0x99
+        
+        # 10 steps for smooth pulsing
+        progress = self.loading_pulse_step / 10.0
+        val = int(base_val + (range_val * progress))
+        val = max(0, min(255, val))
+        return f"#{val:02x}{val:02x}{val:02x}"
+    
+    def _animate_loading_pulse(self):
+        """Animate the loading text with pulsating brightness."""
+        if not self.is_loading:
+            return
+        
+        # Update pulse step
+        self.loading_pulse_step += self.loading_pulse_direction
+        if self.loading_pulse_step >= 10:
+            self.loading_pulse_direction = -1
+        elif self.loading_pulse_step <= 0:
+            self.loading_pulse_direction = 1
+        
+        # Apply pulsing color
+        pulse_color = self._get_pulse_color()
+        self.input_entry.config(fg=pulse_color)
+        
+        # Schedule next frame (60ms for smooth animation)
+        self.loading_animation_id = self.root.after(60, self._animate_loading_pulse)
     
     def get_installed_models(self) -> List[Tuple[str, ModelPlatform]]:
         """Get list of installed Ollama models."""
@@ -801,13 +882,24 @@ Keyboard Shortcuts:
         # Add to history and get response
         self.history.append(Message(role="user", content=user_input))
         
+        # Show loading state
+        self.show_loading("Thinking")
+        
         # Get response in background
         threading.Thread(target=self.get_response, args=(user_input,), daemon=True).start()
     
     def get_response(self, query: str):
         """Get AI response from Ollama."""
         try:
+            # Set up status callback for real-time updates during RAG processing
+            def status_callback(status):
+                self.root.after(0, lambda s=status: self.update_loading_text(s))
+            set_status_callback(status_callback)
+            
             messages = build_messages(self.system_prompt, self.history)
+            
+            # Update to show we're about to generate
+            self.root.after(0, lambda: self.update_loading_text("Generating response"))
             
             self.chat_display.insert(self.tk.END, "\n")
             
@@ -816,6 +908,9 @@ Keyboard Shortcuts:
             
             self.chat_display.insert(self.tk.END, "AI: ", ai_tag_name)
             start_pos = self.chat_display.index(self.tk.END + "-1c")
+            
+            # Hide loading before streaming starts
+            self.root.after(0, self.hide_loading)
             
             if self.streaming_enabled:
                 accumulated: List[str] = []
@@ -846,11 +941,13 @@ Keyboard Shortcuts:
             self.update_status("Ready")
         
         except RuntimeError as err:
+            self.root.after(0, self.hide_loading)
             self.update_status(f"Error: {err}")
             if self.history and self.history[-1].role == "user":
                 self.history.pop()
             self.append_message("system", f"[error] {err}")
         except Exception as e:
+            self.root.after(0, self.hide_loading)
             self.messagebox.showerror("Error", f"Failed to get response: {e}")
     
     def run(self):
