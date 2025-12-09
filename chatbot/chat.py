@@ -171,22 +171,27 @@ def build_messages(system_prompt: str, history: List[Message], user_query: str =
                     context_text += f"\n--- Source {i}: {title} ---\n{text}\n"
                 
                 context_text += f"\n\nCRITICAL INSTRUCTIONS FOR PROCESSING CONTEXT:\n" \
-                                f"STEP 1 - IDENTIFY THE QUESTION TYPE: Determine what specific fact is requested. \n" \
-                                f"  - IF determining a location/date/person: Only extract if EXPLICITLY stated in the text.\n" \
+                                f"STEP 1 - IDENTIFY THE QUESTION TYPE: Determine what specific fact or information is requested.\n" \
+                                f"  - For factual questions (who/what/when/where): Look for direct statements or clear implications.\n" \
+                                f"  - For descriptive questions: Synthesize information from multiple sources when available.\n" \
                                 f"\n" \
-                                f"STEP 2 - SEARCH SOURCES: Scan for the specific answer.\n" \
-                                f"  - IGNORE keywords if they are used in a different context (e.g. 'Capital' of a company vs 'Capital' of a country).\n" \
+                                f"STEP 2 - SEARCH SOURCES: Carefully scan all provided context for the answer.\n" \
+                                f"  - Look for direct statements (e.g., 'Paris is the capital of France').\n" \
+                                f"  - Also recognize equivalent phrasings (e.g., 'the capital is Paris' or 'France's capital, Paris').\n" \
+                                f"  - Pay attention to context to avoid confusion (e.g., 'capital' meaning city vs. financial capital).\n" \
                                 f"\n" \
                                 f"STEP 3 - EXTRACT or REFUSE:\n" \
-                                f"  - If the EXACT answer is in the documents found above: Extract it.\n" \
-                                f"  - If the context describes the topic but does NOT contain the specific fact asked: YOU MUST REFUSE.\n" \
-                                f"  - DO NOT GUESS. DO NOT INFER. DO NOT USE EXTERNAL KNOWLEDGE for specific facts not in the text.\n" \
+                                f"  - If the answer is directly stated OR clearly implied by the context: Extract and provide it.\n" \
+                                f"  - You may infer when the inference is obvious (e.g., if text says 'Paris is the capital of France', this answers 'What is the capital of France?').\n" \
+                                f"  - If the context discusses the topic but does NOT contain information that answers the specific question: Refuse.\n" \
+                                f"  - DO NOT use external knowledge beyond what's in the provided context.\n" \
+                                f"  - DO NOT guess or make up facts.\n" \
                                 f"\n" \
                                 f"STEP 4 - RESPOND:\n" \
-                                f"  - If found: Answer directly and cite the source.\n" \
-                                f"  - If NOT found: explicitly state 'I do not have enough information in the provided context to answer this question.'\n" \
+                                f"  - If the answer is found: Provide a clear, direct answer and cite the source(s).\n" \
+                                f"  - If NOT found: Explicitly state 'I do not have enough information in the provided context to answer this question.'\n" \
                                 f"\n" \
-                                f"REMEMBER: The user requires 1:1 fidelity with the provided ZIM information. Do not hallucinate facts."
+                                f"REMEMBER: Balance accuracy with helpfulness. Answer when context clearly supports it, but refuse when it doesn't."
                 debug_print(f"Context assembled: {len(context_text)} chars total")
             else:
                 debug_print("No results returned from RAG")

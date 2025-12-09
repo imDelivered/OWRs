@@ -34,10 +34,10 @@ for arg in "$@"; do
     fi
 done
 
-# Launch chatbot GUI (suppress terminal output unless debug mode)
+# Launch chatbot GUI (suppress stdout unless debug mode, always show errors)
 if [ "$DEBUG_MODE" = true ]; then
     "$PYTHON_CMD" "$SCRIPT_DIR/run_chatbot.py" "$@"
 else
-    "$PYTHON_CMD" "$SCRIPT_DIR/run_chatbot.py" "$@" > /dev/null 2>&1
+    "$PYTHON_CMD" "$SCRIPT_DIR/run_chatbot.py" "$@" > /dev/null
 fi
 
