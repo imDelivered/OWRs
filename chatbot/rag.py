@@ -639,136 +639,104 @@ class RAGSystem:
         return results
 
     def search_by_title(self, query: str, zim_path: str = None, full_text: bool = False) -> List[Dict]:
-        """Fast fallback: Search by title using ZIM's internal index."""
+        """Fast fallback: Search by title using ZIM's internal index (supports multiple ZIMs)."""
         debug_print(f"search_by_title called: query='{query}', full_text={full_text}")
-        if not zim_path:
-            # Try to find one in current dir
-            files = [f for f in os.listdir('.') if f.endswith('.zim')]
-            if files:
-                zim_path = files[0]
-                debug_print(f"Found ZIM file: {zim_path}")
-            else:
-                debug_print("No ZIM file found")
-                return []
-                
-        try:
-            debug_print(f"Opening ZIM archive: {zim_path}")
-            zim = libzim.Archive(zim_path)
-            searcher = libzim.SuggestionSearcher(zim)
+        
+        zim_files_to_search = []
+        if zim_path:
+            zim_files_to_search = [zim_path]
+        else:
+            # Search all ZIM files in current directory
+            zim_files_to_search = [f for f in os.listdir('.') if f.endswith('.zim')]
             
-            clean_query = query.replace("?", "").replace(".", "").replace("!", "")
-            debug_print(f"Cleaned query: '{clean_query}'")
-            tokens = clean_query.split()
-            debug_print(f"Query tokens: {tokens}")
-            
-            # Extended stop words: includes instructional/generic terms
-            stopwords = {
-                # Question words
-                "how", "what", "when", "who", "where", "why", "which",
-                # Common verbs
-                "is", "are", "was", "were", "do", "did", "does", "can", "could", "would", "should", "has", "have", "had",
-                # Articles & conjunctions
-                "the", "a", "an", "and", "or", "but", "if", "then",
-                # Prepositions
-                "in", "on", "at", "to", "for", "of", "with", "by", "about", "from", "into",
-                # Instructional words (common false positive triggers)
-                "tell", "me", "explain", "describe", "define", "show", "give", "find", "get",
-                "introduced", "features", "list", "main", "what", "overview", "details", "information",
-                # Comparison words
-                "comparing", "compare", "difference", "different", "between", "versus", "vs", "summary",
-                # Format words
-                "markdown", "table", "graph", "chart", "json", "html", "code", "format",
-                # Common filler
-                "some", "any", "all", "many", "most", "other", "such", "very", "just", "also", "only"
-            }
-            
-            # === WEIGHTED KEYWORD SCORER ===
-            # Score each token by importance:
-            # - Base Score: 1.0
-            # - Capitalization Bonus: ×3.0 if starts uppercase and not first word
-            # - Length Penalty: ×0.5 if word length < 4
-            # - Stop Word Penalty: score = 0
-            
-            scored_keywords = []
-            for i, w in enumerate(tokens):
-                # Stop Word Penalty: score = 0 (skip entirely)
-                if w.lower() in stopwords:
-                    debug_print(f"  Skipping stop word: '{w}'")
-                    continue
-                
-                # Base Score
-                score = 1.0
-                
-                # Capitalization Bonus: ×3.0 if uppercase and not first word of sentence
-                # This prioritizes named entities like "Volvo", "XC90", "Tungsten"
-                if len(w) > 0 and w[0].isupper() and i > 0:
-                    score *= 3.0
-                    debug_print(f"  Capitalization bonus for '{w}': score now {score}")
-                
-                # Length Penalty: ×0.5 if word is short (< 4 chars)
-                # This deprioritizes short generic words
-                if len(w) < 4:
-                    score *= 0.5
-                    debug_print(f"  Length penalty for '{w}': score now {score}")
-                
-                # Keep all-caps words (acronyms like "NASA", "XC90", "U2")
-                if w.isupper() and len(w) >= 2:
-                    score = max(score, 3.0)  # Ensure acronyms score highly
-                    debug_print(f"  Acronym boost for '{w}': score now {score}")
-                
-                scored_keywords.append((w, score))
-                debug_print(f"  Keyword '{w}' scored: {score}")
-
-            # Sort by Importance Score (High to Low)
-            scored_keywords.sort(key=lambda x: x[1], reverse=True)
-            debug_print(f"Sorted keywords by importance: {scored_keywords}")
-            
-            # Always select top 3 high-scoring keywords
-            keywords = [w for w, s in scored_keywords[:3]]
-            debug_print(f"Selected top 3 keywords: {keywords}")
-            
-            hits_map = {} 
-            
-            # Strategy 1: Full phrase
-            debug_print("Strategy 1: Searching with full phrase...")
-            if keywords:
-                full_term = " ".join(keywords)
-                debug_print(f"Full term search: '{full_term}'")
-                results = searcher.suggest(full_term)
-                matches = results.getEstimatedMatches()
-                debug_print(f"Full term matches: {matches}")
-                if matches > 0:
-                     self._collect_hits(zim, results, hits_map, full_text)
-            
-            # Strategy 2: Individual keywords
-            debug_print("Strategy 2: Searching with individual keywords...")
-            if len(hits_map) < 3 and keywords:
-                sorted_keywords = sorted(keywords, key=len, reverse=True)
-                debug_print(f"Using top keywords: {sorted_keywords[:2]}")
-                for kw in sorted_keywords[:2]:
-                    debug_print(f"Searching for keyword: '{kw}'")
-                    results = searcher.suggest(kw)
-                    matches = results.getEstimatedMatches()
-                    debug_print(f"Keyword '{kw}' matches: {matches}")
-                    if matches > 0:
-                         self._collect_hits(zim, results, hits_map, full_text)
-                         
-            # Strategy 3: Original query
-            debug_print("Strategy 3: Searching with original query...")
-            if not hits_map:
-                debug_print(f"Original query search: '{query}'")
-                results = searcher.suggest(query)
-                matches = results.getEstimatedMatches()
-                debug_print(f"Original query matches: {matches}")
-                if matches > 0:
-                    self._collect_hits(zim, results, hits_map, full_text)
-
-            debug_print(f"Total hits collected: {len(hits_map)}")
-            return list(hits_map.values())[:5]
-
-        except Exception as e:
-            debug_print(f"search_by_title exception: {type(e).__name__}: {e}")
+        if not zim_files_to_search:
+            debug_print("No ZIM files found")
             return []
+
+        all_results = []
+        # We need a shared hits map if we want global deduplication, or we can just collect lists
+        # But score logic is local to each ZIM search.
+        
+        debug_print(f"Searching across {len(zim_files_to_search)} ZIM files: {zim_files_to_search}")
+
+        for current_zim_path in zim_files_to_search:
+            try:
+                debug_print(f"Opening ZIM archive: {current_zim_path}")
+                zim = libzim.Archive(current_zim_path)
+                searcher = libzim.SuggestionSearcher(zim)
+                
+                clean_query = query.replace("?", "").replace(".", "").replace("!", "")
+                tokens = clean_query.split()
+                
+                # Extended stop words: includes instructional/generic terms
+                stopwords = {
+                    # Question words
+                    "how", "what", "when", "who", "where", "why", "which",
+                    # Common verbs
+                    "is", "are", "was", "were", "do", "did", "does", "can", "could", "would", "should", "has", "have", "had",
+                    # Articles & conjunctions
+                    "the", "a", "an", "and", "or", "but", "if", "then",
+                    # Prepositions
+                    "in", "on", "at", "to", "for", "of", "with", "by", "about", "from", "into",
+                    # Instructional words (common false positive triggers)
+                    "tell", "me", "explain", "describe", "define", "show", "give", "find", "get",
+                    "introduced", "features", "list", "main", "what", "overview", "details", "information",
+                    # Comparison words
+                    "comparing", "compare", "difference", "different", "between", "versus", "vs", "summary",
+                    # Format words
+                    "markdown", "table", "graph", "chart", "json", "html", "code", "format",
+                    # Common filler
+                    "some", "any", "all", "many", "most", "other", "such", "very", "just", "also", "only"
+                }
+                
+                # === WEIGHTED KEYWORD SCORER ===
+                scored_keywords = []
+                for i, w in enumerate(tokens):
+                    if w.lower() in stopwords: continue
+                    
+                    score = 1.0
+                    if len(w) > 0 and w[0].isupper() and i > 0: score *= 3.0
+                    if len(w) < 4: score *= 0.5
+                    if w.isupper() and len(w) >= 2: score = max(score, 3.0)
+                    
+                    scored_keywords.append((w, score))
+
+                scored_keywords.sort(key=lambda x: x[1], reverse=True)
+                keywords = [w for w, s in scored_keywords[:3]]
+                
+                hits_map = {} 
+                
+                # Strategy 1: Full phrase
+                if keywords:
+                    full_term = " ".join(keywords)
+                    results = searcher.suggest(full_term)
+                    if results.getEstimatedMatches() > 0:
+                         self._collect_hits(zim, results, hits_map, full_text, source=current_zim_path)
+                
+                # Strategy 2: Individual keywords
+                if len(hits_map) < 3 and keywords:
+                    sorted_keywords = sorted(keywords, key=len, reverse=True)
+                    for kw in sorted_keywords[:2]:
+                        results = searcher.suggest(kw)
+                        if results.getEstimatedMatches() > 0:
+                             self._collect_hits(zim, results, hits_map, full_text, source=current_zim_path)
+                             
+                # Strategy 3: Original query
+                if not hits_map:
+                    results = searcher.suggest(query)
+                    if results.getEstimatedMatches() > 0:
+                        self._collect_hits(zim, results, hits_map, full_text, source=current_zim_path)
+
+                all_results.extend(list(hits_map.values()))
+
+            except Exception as e:
+                debug_print(f"Error searching ZIM '{current_zim_path}': {type(e).__name__}: {e}")
+                continue
+        
+        # Deduplicate results across ZIMs (unlikely overlap but possible with titles)
+        # We'll just return top 10 total
+        debug_print(f"Total results across all ZIMs: {len(all_results)}")
+        return all_results[:10]
 
     def search_by_embedding(self, query: str, top_k: int = 5, zim_path: str = None, full_text: bool = False) -> List[Dict]:
         """Search titles using vector embeddings."""
@@ -828,7 +796,7 @@ class RAGSystem:
             print(f"Semantic Search Error: {e}")
             return []
 
-    def _collect_hits(self, zim, results, hits_map: Dict, full_text: bool):
+    def _collect_hits(self, zim, results, hits_map: Dict, full_text: bool, source: str = None):
         """Helper to collect and process hits."""
         s_hits = results.getResults(0, 5) # Top 5 per strategy
         for hit_path in s_hits:
@@ -847,7 +815,11 @@ class RAGSystem:
                     
                     hits_map[hit_path] = {
                         'text': display_text, 
-                        'metadata': {'title': entry.title, 'path': entry.path},
+                        'metadata': {
+                            'title': entry.title, 
+                            'path': entry.path,
+                            'source_zim': source
+                        },
                         'score': 1.0
                     }
             except:
