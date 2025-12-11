@@ -3,6 +3,7 @@
 A powerful offline-capable chatbot with **Retrieval-Augmented Generation (RAG)** that lets you chat with AI using local knowledge bases like Wikipedia, Python documentation, or any ZIM file archive.
 
 > **⚠️ Platform Note:** This software is currently only available for Linux. Windows and macOS support may be added in the future.
+> !!!!!!!Its IS NOT PERFECT AND NEEDS ALOT OF WORK USE WITH CAUTION!!!!!!!!
 
 ---
 
